@@ -1,0 +1,37 @@
+node {
+    
+    def Mavencommandhome = tool name :  'maven3.9.2'
+   
+
+    echo "jobname is : $JOB_NAME"
+    echo "node name is :$NODE_NAME"
+    echo "jenkins home url :$JENKINS_HOME"
+
+
+    properties([buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '5', daysToKeepStr: '', numToKeepStr: '5')), pipelineTriggers([pollSCM('* * * * *')])])
+    
+   stage ('gettingcode') {
+        git branch: 'development', credentialsId: 'e217bdf7-ed0e-4033-a448-f621e9482d1f', url: 'https://github.com/Hemeshwar/maven-web-application/'
+    }//getcode
+    
+    stage('building') {
+        sh "${Mavencommandhome}/bin/mvn clean package"
+    }//build
+    
+    stage('runsonar report') {
+           sh "${Mavencommandhome}/bin/mvn clean sonar:sonar"
+    }//sonar
+    
+    stage('artifactrepo') {
+          sh "${Mavencommandhome}/bin/mvn clean deploy"
+    }//nexus
+    
+    stage('tomcatserver') {
+        
+       sshagent(['b9a21f55-6a11-46df-8fcb-74b3bfd1ab86'])  {
+    sh "scp -o StrictHostKeyChecking=no target/maven-web-application.war ec2-user@172.31.37.239:/opt/apache-tomcat-9.0.76/webapps/"
+    }//ssh
+       }//tomcat
+     
+    
+}//node end
